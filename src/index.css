@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Smooth scrollbar */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Book-page shadow for preview */
+.book-page {
+  box-shadow:
+    0 1px 3px rgba(0,0,0,0.08),
+    0 4px 16px rgba(0,0,0,0.10),
+    4px 4px 0 rgba(0,0,0,0.04);
+}
+
+/* Subtle textarea focus ring */
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
