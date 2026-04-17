@@ -152,6 +152,7 @@ function DownloadButton({ bookData, templateId, fontId }) {
   const [hasConsent, setHasConsent] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [success, setSuccess] = useState('')
   const [canDownload, setCanDownload] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -238,6 +239,7 @@ function DownloadButton({ bookData, templateId, fontId }) {
 
     setError('')
     setNotice('')
+    setSuccess('')
     setIsSubmitting(true)
     const result = await submitLead()
     setIsSubmitting(false)
@@ -249,6 +251,9 @@ function DownloadButton({ bookData, templateId, fontId }) {
 
     setError('')
     setNotice(result.message)
+    setSuccess('Email saved. Your PDF download should begin automatically.')
+    setEmail('')
+    setHasConsent(false)
     setIsPromptOpen(false)
     setCanDownload(true)
   }
@@ -371,6 +376,12 @@ function DownloadButton({ bookData, templateId, fontId }) {
       {notice && !isPromptOpen && (
         <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           {notice}
+        </p>
+      )}
+
+      {success && !isPromptOpen && (
+        <p className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+          {success}
         </p>
       )}
     </>
