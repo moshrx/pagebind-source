@@ -151,6 +151,7 @@ function DownloadButton({ bookData, templateId, fontId }) {
   const [email, setEmail] = useState('')
   const [hasConsent, setHasConsent] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [canDownload, setCanDownload] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -168,10 +169,15 @@ function DownloadButton({ bookData, templateId, fontId }) {
   const closePrompt = () => {
     setIsPromptOpen(false)
     setError('')
+    setNotice('')
   }
 
   const submitLead = async () => {
     const trimmedEmail = email.trim().toLowerCase()
+    const isLocalEnvironment =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1'
+
     const payload = new URLSearchParams({
       'form-name': 'download-leads',
       email: trimmedEmail,
@@ -195,10 +201,19 @@ function DownloadButton({ bookData, templateId, fontId }) {
         throw new Error('Request failed')
       }
 
-      return true
+      return { ok: true, message: '' }
     } catch {
-      setError('We could not save your email right now. Please try again.')
-      return false
+      if (isLocalEnvironment) {
+        return {
+          ok: true,
+          message: 'Email capture only works after deployment on Netlify. Your PDF will still download in local testing.',
+        }
+      }
+
+      return {
+        ok: false,
+        message: 'We could not save your email right now. If this is on Netlify, check that form detection is enabled and redeploy once.',
+      }
     }
   }
 
@@ -221,13 +236,19 @@ function DownloadButton({ bookData, templateId, fontId }) {
       return
     }
 
+    setError('')
+    setNotice('')
     setIsSubmitting(true)
-    const didSubmit = await submitLead()
+    const result = await submitLead()
     setIsSubmitting(false)
 
-    if (!didSubmit) return
+    if (!result.ok) {
+      setError(result.message)
+      return
+    }
 
     setError('')
+    setNotice(result.message)
     setIsPromptOpen(false)
     setCanDownload(true)
   }
@@ -318,6 +339,12 @@ function DownloadButton({ bookData, templateId, fontId }) {
               </p>
             )}
 
+            {notice && (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {notice}
+              </p>
+            )}
+
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -339,6 +366,12 @@ function DownloadButton({ bookData, templateId, fontId }) {
             </div>
           </div>
         </div>
+      )}
+
+      {notice && !isPromptOpen && (
+        <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          {notice}
+        </p>
       )}
     </>
   )
