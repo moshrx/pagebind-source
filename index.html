@@ -8,6 +8,22 @@
     <meta name="description" content="Paste any AI-generated text and instantly download a clean, formatted PDF ebook." />
   </head>
   <body>
+    <form
+      name="download-leads"
+      method="POST"
+      data-netlify="true"
+      netlify-honeypot="bot-field"
+      hidden
+    >
+      <input type="hidden" name="form-name" value="download-leads" />
+      <input type="hidden" name="bot-field" />
+      <input type="email" name="email" />
+      <input type="text" name="bookTitle" />
+      <input type="text" name="templateId" />
+      <input type="text" name="fontId" />
+      <input type="text" name="consentedAt" />
+      <input type="text" name="permissionReason" />
+    </form>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

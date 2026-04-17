@@ -92,9 +92,12 @@ function extractFrontMatter(lines) {
     return { title: 'Untitled', subtitle: '', author: '', startIdx: 0 }
   }
 
-  // Title – strip leading markdown "#" if present
+  // Title – strip leading markdown "#" and common AI-generated "Title: " prefixes
   const rawTitle = lines[idx].trim()
-  const title = rawTitle.replace(/^#+\s*/, '') || 'Untitled'
+  const title = rawTitle
+    .replace(/^#+\s*/, '')
+    .replace(/^title\s*:\s*/i, '')
+    .trim() || 'Untitled'
   idx++
 
   let subtitle = ''
@@ -106,8 +109,9 @@ function extractFrontMatter(lines) {
 
     if (!line) { idx++; continue }
 
-    // Stop if we hit a chapter heading – body has started
+    // Stop if we hit a chapter heading or a well-known section word – body has started
     if (isChapterHeading(line)) break
+    if (/^(introduction|preface|foreword|prologue|epilogue|conclusion|afterword)$/i.test(line)) break
 
     const authorMatch = line.match(AUTHOR_RE)
     if (authorMatch) {
@@ -220,22 +224,37 @@ function isSectionHeading(line, lines, idx) {
   // Markdown H2/H3
   if (MD_H2_RE.test(line)) return true
 
-  // All-caps short line (e.g. "THE BEGINNING", "KEY CONCEPTS")
+  // All-caps multi-word line (e.g. "THE BEGINNING", "KEY CONCEPTS")
+  // Require at least two words and a space to avoid single-word abbreviations
   if (
     line === line.toUpperCase() &&
-    line.length >= 4 &&
-    line.length <= 80 &&
-    !/^\d/.test(line)        // not a plain number
+    /\s/.test(line) &&
+    line.length >= 6 &&
+    line.length <= 60 &&
+    !/^\d/.test(line)
   )
     return true
 
-  // Short title-case line followed by a long paragraph
+  // Title-case multi-word line followed by a long paragraph
+  // e.g. "Getting Started", "The Core Principles", "Why This Matters"
+  // Must: 2–7 words, no sentence-end punctuation, most content words capitalised
+  const words = line.trim().split(/\s+/)
+  const contentWords = words.filter((w) => w.length > 3)
+  const isTitleCase =
+    contentWords.length > 0 &&
+    contentWords.every((w) => /^[A-Z]/.test(w))
   const nextLine = lines.slice(idx + 1).find((l) => l.trim())
+
   if (
-    line.length <= 70 &&
+    words.length >= 2 &&
+    words.length <= 7 &&
+    line.length <= 60 &&
     !line.endsWith('.') &&
     !line.endsWith(',') &&
-    /^[A-Z]/.test(line) &&
+    !line.endsWith(':') &&
+    !line.endsWith(';') &&
+    !line.endsWith('?') &&
+    isTitleCase &&
     nextLine &&
     nextLine.trim().length > 80
   )

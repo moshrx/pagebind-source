@@ -3,6 +3,7 @@
  * @react-pdf/renderer document. Driven entirely by bookData + template + font props.
  *
  * Layout: US Letter, 1-inch margins, footer on every page.
+ * Pages: Title → Table of Contents → Chapters
  */
 
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
@@ -67,6 +68,43 @@ function makeStyles(tpl, fnt) {
       letterSpacing: 0.5,
     },
 
+    // ── Table of Contents ────────────────────────────────────────────────────
+    tocHeading: {
+      fontFamily: fnt.pdf.bold,
+      fontSize: 22,
+      color: tpl.headingColor,
+      textAlign: tpl.headingAlign,
+      marginBottom: 32,
+      letterSpacing: 0.3,
+    },
+    tocRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      paddingVertical: 10,
+      borderBottomWidth: 0.5,
+      borderBottomColor: tpl.dividerColor,
+    },
+    tocChapterLabel: {
+      fontFamily: fnt.pdf.body,
+      fontSize: 8,
+      color: tpl.chapterLabelColor,
+      letterSpacing: 1.5,
+      width: 72,
+      textTransform: 'uppercase',
+    },
+    tocChapterTitle: {
+      fontFamily: fnt.pdf.bold,
+      fontSize: 12,
+      color: tpl.headingColor,
+      flex: 1,
+    },
+    tocDots: {
+      fontFamily: fnt.pdf.body,
+      fontSize: 10,
+      color: tpl.dividerColor,
+      marginHorizontal: 6,
+    },
+
     // ── Chapter pages ────────────────────────────────────────────────────────
     chapterLabel: {
       fontFamily: fnt.pdf.body,
@@ -84,6 +122,13 @@ function makeStyles(tpl, fnt) {
       lineHeight: 1.3,
       marginBottom: 32,
       textAlign: tpl.headingAlign,
+    },
+    chapterDivider: {
+      width: 40,
+      borderBottomWidth: 1,
+      borderBottomColor: tpl.dividerColor,
+      marginBottom: 28,
+      alignSelf: tpl.headingAlign === 'center' ? 'center' : 'flex-start',
     },
     sectionTitle: {
       fontFamily: fnt.pdf.bold,
@@ -162,19 +207,40 @@ export default function PDFDocument({ bookData, templateId = 'classic', fontId =
         <Footer title={title} S={S} />
       </Page>
 
+      {/* ── Table of Contents ──────────────────────────────────────────────── */}
+      {chapters.length > 1 && (
+        <Page size="LETTER" style={S.page}>
+          <Text style={S.tocHeading}>Contents</Text>
+          {chapters.map((chapter, idx) => (
+            <View key={idx} style={S.tocRow}>
+              <Text style={S.tocChapterLabel}>
+                {chapter.chapterNumber > 0 ? `Chapter ${chapter.chapterNumber}` : 'Intro'}
+              </Text>
+              <Text style={S.tocDots}>···</Text>
+              <Text style={S.tocChapterTitle}>{chapter.chapterTitle || `Chapter ${chapter.chapterNumber}`}</Text>
+            </View>
+          ))}
+          <Footer title={title} S={S} />
+        </Page>
+      )}
+
       {/* ── Chapters ───────────────────────────────────────────────────────── */}
       {chapters.map((chapter, cIdx) => (
         <Page key={cIdx} size="LETTER" style={S.page}>
           {chapter.chapterNumber > 0 && (
             <Text style={S.chapterLabel}>Chapter {chapter.chapterNumber}</Text>
           )}
-          <Text style={S.chapterTitle}>{chapter.chapterTitle}</Text>
+          {/* Only show title text if it differs from "Chapter N" bare label */}
+          {chapter.chapterTitle ? (
+            <Text style={S.chapterTitle}>{chapter.chapterTitle}</Text>
+          ) : null}
+          <View style={S.chapterDivider} />
 
           {chapter.sections.map((section, sIdx) => (
-            <View key={sIdx}>
-              {section.sectionTitle
-                ? <Text style={S.sectionTitle}>{section.sectionTitle}</Text>
-                : null}
+            <View key={sIdx} wrap>
+              {section.sectionTitle ? (
+                <Text style={S.sectionTitle}>{section.sectionTitle}</Text>
+              ) : null}
               {section.content.map((para, pIdx) => (
                 <Text key={pIdx} style={S.paragraph}>{para}</Text>
               ))}

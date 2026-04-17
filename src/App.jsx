@@ -117,6 +117,89 @@ function FontPicker({ value, onChange }) {
 }
 
 // ---------------------------------------------------------------------------
+// New-user guide
+// ---------------------------------------------------------------------------
+
+const EBOOK_SCRIPT_TEMPLATE = `The Quiet Shape of Better Work
+
+A Practical Guide to Clear Thinking and Consistent Output
+
+by Alex Harper
+
+Chapter 1 - Start with a strong promise
+
+Open with a short paragraph that explains what the reader will gain.
+
+## Why this matters
+
+Use section headings when you want cleaner structure inside a chapter.
+
+Add paragraphs as normal body text. Keep each paragraph separated by a blank line.
+
+Chapter 2 - Keep one idea per section
+
+Each new chapter should start with "Chapter N - Title" so Pagebind can detect it reliably.
+
+## Keep formatting simple
+
+Avoid tables, stray bullets, and chat-style labels when possible if you want the cleanest ebook layout.`
+
+function HowToUse({ onUseTemplate }) {
+  return (
+    <section className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-indigo-500">
+            New here?
+          </p>
+          <h2 className="mt-1 text-base font-semibold text-gray-900">
+            How to get the best ebook layout
+          </h2>
+        </div>
+        <span className="rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-indigo-600 ring-1 ring-indigo-100">
+          Recommended
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 text-sm text-gray-600">
+        <p>
+          Start with an ebook-style script, not a chat transcript. When your text follows a clear title,
+          subtitle, author, chapter, and section pattern, the parser can align the design much better.
+        </p>
+        <div className="rounded-xl border border-white/80 bg-white/90 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Best structure</p>
+          <ul className="mt-2 space-y-1.5 text-sm text-gray-700">
+            <li>`Title` on the first line</li>
+            <li>`Subtitle` and optional `by Author` below it</li>
+            <li>`Chapter 1 - Title` for each chapter</li>
+            <li>`## Section Title` for sub-sections inside chapters</li>
+            <li>Blank lines between paragraphs</li>
+          </ul>
+        </div>
+        <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+          Use plain prose whenever possible. Heavy bullets, pasted prompts, or mixed note formats can lead to awkward page flow.
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <button
+          onClick={onUseTemplate}
+          className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 active:scale-[0.98]"
+        >
+          Use ebook script template
+        </button>
+        <a
+          href="#paste-area"
+          className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+        >
+          Jump to editor
+        </a>
+      </div>
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Left panel (paste + options + button)
 // ---------------------------------------------------------------------------
 
@@ -136,11 +219,22 @@ Chapter 3 – Rules for Deep Work
 
 To master deep work, you need more than inspiration — you need a system. The following rules form the foundation of a productive deep-work practice.`
 
-function LeftPanel({ text, onChange, templateId, onTemplateChange, fontId, onFontChange, onFormat, isFormatting }) {
+function LeftPanel({
+  text,
+  onChange,
+  onUseTemplate,
+  templateId,
+  onTemplateChange,
+  fontId,
+  onFontChange,
+  onFormat,
+  isFormatting,
+}) {
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0
 
   return (
     <div className="flex flex-col h-full gap-5">
+      <HowToUse onUseTemplate={onUseTemplate} />
 
       {/* ── Section 1: Paste text ─────────────────────────────────────────── */}
       <div className="flex flex-col gap-2">
@@ -163,7 +257,7 @@ function LeftPanel({ text, onChange, templateId, onTemplateChange, fontId, onFon
           style={{ minHeight: '220px', maxHeight: '340px' }}
         />
         <p className="text-xs text-gray-400">
-          First line = book title. Use <code className="bg-gray-100 px-1 rounded">Chapter N – Title</code> for chapters.
+          First line = book title. Use <code className="bg-gray-100 px-1 rounded">Chapter N - Title</code> for chapters and <code className="bg-gray-100 px-1 rounded">## Section Title</code> for sections.
         </p>
       </div>
 
@@ -243,6 +337,12 @@ export default function App() {
     }, 40)
   }, [text])
 
+  const handleUseTemplate = useCallback(() => {
+    setText(EBOOK_SCRIPT_TEMPLATE)
+    setBookData(null)
+    setError(null)
+  }, [])
+
   // Re-format automatically when template or font changes (if we already have data)
   const handleTemplateChange = (id) => {
     setTemplateId(id)
@@ -262,6 +362,7 @@ export default function App() {
           <LeftPanel
             text={text}
             onChange={setText}
+            onUseTemplate={handleUseTemplate}
             templateId={templateId}
             onTemplateChange={handleTemplateChange}
             fontId={fontId}
