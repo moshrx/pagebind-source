@@ -34,8 +34,14 @@ const MD_H2_RE = /^#{2,3}\s+(.+)/
 /** Detects "1. Chapter Title" or "1) Chapter Title" numbering */
 const NUMBERED_HEADING_RE = /^(\d+)[.)]\s+([A-Z].{2,})/
 
-/** Detects "by Author Name" or "Author: Name" author lines */
+/** Detects "by Author Name" or "Author: Name" author lines (name on same line) */
 const AUTHOR_RE = /^(by|author:?)\s+(.+)/i
+
+/** Detects a bare author label with no name — e.g. "Author:" or "By:" */
+const AUTHOR_LABEL_RE = /^(author|by)\s*:?\s*$/i
+
+/** Detects Table of Contents section headers */
+const TOC_RE = /^(table of contents|contents)$/i
 
 // ---------------------------------------------------------------------------
 // Main export
@@ -94,17 +100,31 @@ function extractFrontMatter(lines) {
 
   // Title – strip leading markdown "#" and common AI-generated "Title: " prefixes
   const rawTitle = lines[idx].trim()
-  const title = rawTitle
+  let title = rawTitle
     .replace(/^#+\s*/, '')
     .replace(/^title\s*:\s*/i, '')
-    .trim() || 'Untitled'
+    .trim()
   idx++
+
+  // If the title line was a bare label like "Title:" with no value,
+  // look ahead to the next non-empty line for the actual title text.
+  if (!title) {
+    while (idx < lines.length && !lines[idx].trim()) idx++
+    if (idx < lines.length) {
+      const candidate = lines[idx].trim()
+      if (!isChapterHeading(candidate) && !TOC_RE.test(candidate)) {
+        title = candidate.replace(/^#+\s*/, '').replace(/^title\s*:\s*/i, '').trim()
+        idx++
+      }
+    }
+  }
+  title = title || 'Untitled'
 
   let subtitle = ''
   let author = ''
 
-  // Look ahead up to 4 more lines for subtitle / author
-  for (let lookahead = 0; lookahead < 4 && idx < lines.length; lookahead++) {
+  // Look ahead up to 8 lines for subtitle / author
+  for (let lookahead = 0; lookahead < 8 && idx < lines.length; lookahead++) {
     const line = lines[idx].trim()
 
     if (!line) { idx++; continue }
@@ -112,7 +132,9 @@ function extractFrontMatter(lines) {
     // Stop if we hit a chapter heading or a well-known section word – body has started
     if (isChapterHeading(line)) break
     if (/^(introduction|preface|foreword|prologue|epilogue|conclusion|afterword)$/i.test(line)) break
+    if (TOC_RE.test(line)) break
 
+    // "Author: Name" on the same line
     const authorMatch = line.match(AUTHOR_RE)
     if (authorMatch) {
       author = authorMatch[2].trim()
@@ -120,7 +142,21 @@ function extractFrontMatter(lines) {
       continue
     }
 
-    // Short line that isn't already the author → treat as subtitle
+    // "Author:" / "By:" label on its own line — name is on the next non-empty line
+    if (AUTHOR_LABEL_RE.test(line)) {
+      idx++
+      while (idx < lines.length && !lines[idx].trim()) idx++
+      if (idx < lines.length) {
+        const nameLine = lines[idx].trim()
+        if (nameLine && !isChapterHeading(nameLine) && !TOC_RE.test(nameLine)) {
+          author = nameLine
+          idx++
+        }
+      }
+      continue
+    }
+
+    // Short line that isn't the author → treat as subtitle
     if (!subtitle && line.length < 120 && !line.endsWith('.')) {
       subtitle = line.replace(/^#+\s*/, '')
       idx++
@@ -166,10 +202,29 @@ function buildChapters(lines, startIdx) {
     // ── Blank line ──────────────────────────────────────────────────────────
     if (!line) continue
 
-    // ── Chapter heading ─────────────────────────────────────────────────────
-    if (isChapterHeading(line)) {
+    // ── Skip embedded Table of Contents blocks ──────────────────────────────
+    // Advance past all TOC lines until the first real chapter heading.
+    if (TOC_RE.test(line)) {
+      i++
+      while (i < lines.length) {
+        const nextLine = lines[i].trim()
+        if (nextLine && isChapterHeading(nextLine)) { i--; break }
+        i++
+      }
+      continue
+    }
+
+    // ── Chapter heading vs. numbered sub-item ───────────────────────────────
+    // "1. Sub Title" is a numbered item. When we are already inside a chapter
+    // it becomes a section, NOT a new top-level chapter.
+    const isNumberedItem = NUMBERED_HEADING_RE.test(line)
+
+    if (isChapterHeading(line) && !(currentChapter && isNumberedItem)) {
       pushChapter()
-      chapterCount++
+      // Preserve the explicit number written in the text (e.g. "Chapter 3")
+      // so chapters always match what the author intended.
+      const explicitNum = extractChapterNumber(line)
+      chapterCount = explicitNum !== null ? explicitNum : chapterCount + 1
       currentChapter = {
         chapterNumber: chapterCount,
         chapterTitle: cleanChapterTitle(line),
@@ -179,17 +234,21 @@ function buildChapters(lines, startIdx) {
       continue
     }
 
-    // ── Section heading ──────────────────────────────────────────────────────
-    if (currentChapter && isSectionHeading(line, lines, i)) {
+    // ── Section / sub-chapter heading ────────────────────────────────────────
+    // Catches: ## markdown, all-caps phrases, title-case phrases before long
+    // paragraphs, **bold** full-line headings, and numbered sub-items (1. / 2.)
+    // that appear inside an existing chapter.
+    if (currentChapter && (isSectionHeading(line, lines, i) || isNumberedItem)) {
       pushSection()
-      currentSection = { sectionTitle: cleanMarkdown(line), content: [] }
+      currentSection = { sectionTitle: cleanSectionTitle(line), content: [] }
       continue
     }
 
     // ── Regular paragraph ────────────────────────────────────────────────────
-    // Auto-create an intro chapter if content appears before any chapter heading
+    // Auto-create an intro chapter if content appears before any chapter heading.
+    // Do NOT increment chapterCount so that the first explicit "Chapter N" keeps
+    // its original number.
     if (!currentChapter) {
-      chapterCount++
       currentChapter = {
         chapterNumber: 0,
         chapterTitle: 'Introduction',
@@ -215,6 +274,9 @@ function buildChapters(lines, startIdx) {
 function isChapterHeading(line) {
   if (CHAPTER_RE.test(line)) return true
   if (MD_H1_RE.test(line)) return true
+  // "## Chapter N" / "### Chapter N" — chapter keyword overrides the ## level
+  const noHash = line.replace(/^#+\s*/, '')
+  if (noHash !== line && CHAPTER_RE.test(noHash)) return true
   // "1. Chapter Title" (numbered, starts with capital after number)
   if (NUMBERED_HEADING_RE.test(line)) return true
   return false
@@ -223,6 +285,9 @@ function isChapterHeading(line) {
 function isSectionHeading(line, lines, idx) {
   // Markdown H2/H3
   if (MD_H2_RE.test(line)) return true
+
+  // Full-line bold markdown: **Section Title**
+  if (/^\*\*[^*]+\*\*$/.test(line)) return true
 
   // All-caps multi-word line (e.g. "THE BEGINNING", "KEY CONCEPTS")
   // Require at least two words and a space to avoid single-word abbreviations
@@ -235,10 +300,13 @@ function isSectionHeading(line, lines, idx) {
   )
     return true
 
-  // Title-case multi-word line followed by a long paragraph
+  // Title-case multi-word line followed by a paragraph of decent length.
   // e.g. "Getting Started", "The Core Principles", "Why This Matters"
-  // Must: 2–7 words, no sentence-end punctuation, most content words capitalised
-  const words = line.trim().split(/\s+/)
+  // Must: 2–8 words, no sentence-end punctuation, most content words capitalised.
+  // Threshold lowered to 60 chars so sections with shorter opening sentences
+  // are still detected.
+  const stripped = line.replace(/^\*\*(.+?)\*\*$/, '$1') // unwrap bold for this check
+  const words = stripped.trim().split(/\s+/)
   const contentWords = words.filter((w) => w.length > 3)
   const isTitleCase =
     contentWords.length > 0 &&
@@ -247,16 +315,16 @@ function isSectionHeading(line, lines, idx) {
 
   if (
     words.length >= 2 &&
-    words.length <= 7 &&
-    line.length <= 60 &&
-    !line.endsWith('.') &&
-    !line.endsWith(',') &&
-    !line.endsWith(':') &&
-    !line.endsWith(';') &&
-    !line.endsWith('?') &&
+    words.length <= 8 &&
+    stripped.length <= 70 &&
+    !stripped.endsWith('.') &&
+    !stripped.endsWith(',') &&
+    !stripped.endsWith(':') &&
+    !stripped.endsWith(';') &&
+    !stripped.endsWith('?') &&
     isTitleCase &&
     nextLine &&
-    nextLine.trim().length > 80
+    nextLine.trim().length > 60
   )
     return true
 
@@ -267,14 +335,33 @@ function isSectionHeading(line, lines, idx) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function cleanChapterTitle(line) {
-  // Remove "Chapter N –" prefix, strip markdown #
+/** Clean a section / sub-chapter title: strip numbered prefix and markdown. */
+function cleanSectionTitle(line) {
   return line
+    .replace(/^(\d+)[.)]\s+/, '')          // strip "1. " or "2) " prefix
+    .replace(/^\*\*(.+?)\*\*$/, '$1')      // unwrap **bold**
+    .replace(/\*\*(.+?)\*\*/g, '$1')       // strip inline bold
+    .replace(/\*(.+?)\*/g, '$1')           // strip italic
+    .replace(/`(.+?)`/g, '$1')             // strip code
+    .replace(/^#+\s+/, '')                 // strip markdown heading markers
+    .replace(/^>\s*/, '')                  // strip blockquote marker
+    .trim()
+}
+
+/** Extract the numeric part of a "Chapter N" heading, or null if not present. */
+function extractChapterNumber(line) {
+  const match = line.match(/^(?:chapter|ch\.?)\s+(\d+)/i)
+  return match ? parseInt(match[1], 10) : null
+}
+
+function cleanChapterTitle(line) {
+  // Strip leading # markers first so CHAPTER_RE matches cleanly
+  const noHash = line.replace(/^#+\s*/, '')
+  return noHash
     .replace(CHAPTER_RE, '')
-    .replace(/^#+\s*/, '')
     .replace(NUMBERED_HEADING_RE, '$2')
     .replace(/^[\s:.\-–—]+/, '')
-    .trim() || line.trim()
+    .trim() || ''
 }
 
 function cleanMarkdown(line) {
