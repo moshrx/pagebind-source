@@ -80,7 +80,8 @@ function makeStyles(tpl, fnt) {
     tocRow: {
       flexDirection: 'row',
       alignItems: 'baseline',
-      paddingVertical: 10,
+      paddingTop: 8,
+      paddingBottom: 8,
       borderBottomWidth: 0.5,
       borderBottomColor: tpl.dividerColor,
     },
@@ -112,7 +113,7 @@ function makeStyles(tpl, fnt) {
       color: tpl.chapterLabelColor,
       textTransform: 'uppercase',
       letterSpacing: 2.5,
-      marginBottom: 8,
+      marginBottom: 6,
       textAlign: tpl.headingAlign,
     },
     chapterTitle: {
@@ -120,31 +121,40 @@ function makeStyles(tpl, fnt) {
       fontSize: 26,
       color: tpl.headingColor,
       lineHeight: 1.3,
-      marginBottom: 32,
+      marginBottom: 14,
       textAlign: tpl.headingAlign,
     },
     chapterDivider: {
       width: 40,
       borderBottomWidth: 1,
       borderBottomColor: tpl.dividerColor,
-      marginBottom: 28,
+      marginBottom: 20,
       alignSelf: tpl.headingAlign === 'center' ? 'center' : 'flex-start',
     },
     sectionTitle: {
       fontFamily: fnt.pdf.bold,
-      fontSize: 14,
+      fontSize: 13,
       color: tpl.headingColor,
-      marginTop: 22,
-      marginBottom: 8,
+      marginTop: 14,
+      marginBottom: 5,
       lineHeight: 1.3,
     },
+    // Full paragraphs — multi-sentence prose
     paragraph: {
       fontFamily: fnt.pdf.body,
       fontSize: 12,
       color: tpl.bodyColor,
-      lineHeight: 1.75,
+      lineHeight: 1.55,
       textAlign: 'justify',
-      marginBottom: 10,
+      marginBottom: 8,
+    },
+    // Short items — single-line phrases, bullet-point style content
+    listItem: {
+      fontFamily: fnt.pdf.body,
+      fontSize: 12,
+      color: tpl.bodyColor,
+      lineHeight: 1.4,
+      marginBottom: 2,
     },
 
     // ── Footer ───────────────────────────────────────────────────────────────
@@ -241,9 +251,21 @@ export default function PDFDocument({ bookData, templateId = 'classic', fontId =
               {section.sectionTitle ? (
                 <Text style={S.sectionTitle}>{section.sectionTitle}</Text>
               ) : null}
-              {section.content.map((para, pIdx) => (
-                <Text key={pIdx} style={S.paragraph}>{para}</Text>
-              ))}
+              {section.content.map((para, pIdx) => {
+                // Short lines with no sentence-ending punctuation are
+                // list/bullet-style items — render tightly without justify.
+                const isListItem =
+                  para.length < 60 &&
+                  !para.endsWith('.') &&
+                  !para.endsWith('?') &&
+                  !para.endsWith('!') &&
+                  !para.endsWith(':')
+                return (
+                  <Text key={pIdx} style={isListItem ? S.listItem : S.paragraph}>
+                    {para}
+                  </Text>
+                )
+              })}
             </View>
           ))}
 
