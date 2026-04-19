@@ -109,6 +109,7 @@ export const handler = async (event) => {
         generationConfig: {
           temperature: 0,
           responseMimeType: 'application/json',
+          thinkingConfig: { thinkingBudget: 0 },
         },
       }),
     })

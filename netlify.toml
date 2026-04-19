@@ -7,6 +7,10 @@
 
 [functions]
   directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[functions."enhance"]
+  timeout = 26
 
 # SPA fallback – all routes served by index.html
 [[redirects]]
