@@ -5,6 +5,7 @@
 
 import { useState, useCallback } from 'react'
 import { parseText } from './lib/parseText.js'
+import { enhanceWithAI } from './lib/enhanceWithAI.js'
 import { TEMPLATES, TEMPLATE_ORDER, FONTS, FONT_ORDER } from './lib/themes.js'
 import PreviewPanel from './components/PreviewPanel.jsx'
 
@@ -229,8 +230,11 @@ function LeftPanel({
   onFontChange,
   onFormat,
   isFormatting,
+  onEnhance,
+  isEnhancing,
 }) {
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0
+  const busy = isFormatting || isEnhancing
 
   return (
     <div className="flex flex-col h-full gap-5">
@@ -268,17 +272,48 @@ function LeftPanel({
         <FontPicker value={fontId} onChange={onFontChange} />
       </div>
 
-      {/* ── Section 3: Format button ──────────────────────────────────────── */}
+      {/* ── Section 3: Format / Enhance buttons ──────────────────────────── */}
       <div className="flex flex-col gap-2">
         <p className="text-sm font-semibold text-gray-700">3 · Preview &amp; download</p>
+
+        {/* Primary: AI Enhance */}
         <button
-          onClick={onFormat}
-          disabled={!text.trim() || isFormatting}
+          onClick={onEnhance}
+          disabled={!text.trim() || busy}
           className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl
             font-semibold text-sm transition-all duration-150
-            ${!text.trim() || isFormatting
+            ${!text.trim() || busy
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white shadow hover:shadow-md'
+            }`}
+        >
+          {isEnhancing ? (
+            <>
+              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Enhancing with AI…
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              Enhance with AI
+            </>
+          )}
+        </button>
+
+        {/* Secondary: quick local format */}
+        <button
+          onClick={onFormat}
+          disabled={!text.trim() || busy}
+          className={`w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl
+            font-semibold text-sm transition-all duration-150 border
+            ${!text.trim() || busy
+              ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 bg-white hover:bg-gray-50 active:scale-[0.98] text-gray-700'
             }`}
         >
           {isFormatting ? (
@@ -290,12 +325,7 @@ function LeftPanel({
               Parsing…
             </>
           ) : (
-            <>
-              Format &amp; Preview
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </>
+            'Quick Format (no AI)'
           )}
         </button>
       </div>
@@ -313,6 +343,7 @@ export default function App() {
   const [fontId, setFontId] = useState('serif')
   const [bookData, setBookData] = useState(null)
   const [isFormatting, setIsFormatting] = useState(false)
+  const [isEnhancing, setIsEnhancing] = useState(false)
   const [error, setError] = useState(null)
 
   const handleFormat = useCallback(() => {
@@ -335,6 +366,21 @@ export default function App() {
         setIsFormatting(false)
       }
     }, 40)
+  }, [text])
+
+  const handleEnhance = useCallback(async () => {
+    if (!text.trim()) return
+    setIsEnhancing(true)
+    setError(null)
+    try {
+      const parsed = await enhanceWithAI(text)
+      setBookData(parsed)
+    } catch (err) {
+      setError('AI enhance failed: ' + err.message)
+      setBookData(null)
+    } finally {
+      setIsEnhancing(false)
+    }
   }, [text])
 
   const handleUseTemplate = useCallback(() => {
@@ -369,6 +415,8 @@ export default function App() {
             onFontChange={setFontId}
             onFormat={handleFormat}
             isFormatting={isFormatting}
+            onEnhance={handleEnhance}
+            isEnhancing={isEnhancing}
           />
 
           {error && (
