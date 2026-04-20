@@ -10,6 +10,74 @@ import { TEMPLATES, TEMPLATE_ORDER, FONTS, FONT_ORDER } from './lib/themes.js'
 import PreviewPanel from './components/PreviewPanel.jsx'
 
 // ---------------------------------------------------------------------------
+// Password gate
+// ---------------------------------------------------------------------------
+
+const ACCESS_CODE = 'BIND14'
+const STORAGE_KEY = 'pb_unlocked'
+
+function PasswordGate({ onUnlock }) {
+  const [value, setValue] = useState('')
+  const [error, setError] = useState(false)
+
+  const attempt = () => {
+    if (value.trim() === ACCESS_CODE) {
+      localStorage.setItem(STORAGE_KEY, '1')
+      onUnlock()
+    } else {
+      setError(true)
+      setValue('')
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center gap-6">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5">
+          <svg className="w-6 h-6 text-indigo-600" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+          </svg>
+          <span className="text-lg font-bold tracking-tight text-gray-900">Pagebind</span>
+        </div>
+
+        <div className="text-center">
+          <p className="text-sm font-semibold text-gray-700">Enter access code</p>
+          <p className="text-xs text-gray-400 mt-1">This tool is invite-only</p>
+        </div>
+
+        <div className="w-full flex flex-col gap-3">
+          <input
+            type="password"
+            value={value}
+            onChange={(e) => { setValue(e.target.value); setError(false) }}
+            onKeyDown={(e) => e.key === 'Enter' && attempt()}
+            placeholder="Access code"
+            autoFocus
+            className={`w-full rounded-xl border px-4 py-3 text-sm text-center tracking-widest font-mono outline-none transition
+              ${error
+                ? 'border-red-300 bg-red-50 focus:border-red-400'
+                : 'border-gray-200 bg-gray-50 focus:border-indigo-300 focus:bg-white'
+              }`}
+          />
+          {error && (
+            <p className="text-xs text-red-600 text-center">Invalid access code</p>
+          )}
+          <button
+            onClick={attempt}
+            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-semibold transition-all"
+          >
+            Access
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Header
 // ---------------------------------------------------------------------------
 
@@ -338,6 +406,7 @@ function LeftPanel({
 // ---------------------------------------------------------------------------
 
 export default function App() {
+  const [unlocked, setUnlocked] = useState(() => localStorage.getItem(STORAGE_KEY) === '1')
   const [text, setText] = useState('')
   const [templateId, setTemplateId] = useState('classic')
   const [fontId, setFontId] = useState('serif')
@@ -345,6 +414,8 @@ export default function App() {
   const [isFormatting, setIsFormatting] = useState(false)
   const [isEnhancing, setIsEnhancing] = useState(false)
   const [error, setError] = useState(null)
+
+  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />
 
   const handleFormat = useCallback(() => {
     if (!text.trim()) return
