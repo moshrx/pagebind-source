@@ -66,7 +66,7 @@ function PasswordGate({ onUnlock }) {
             <div className="flex flex-col items-center gap-2">
               <p className="text-xs text-red-600 text-center">Invalid access code. Don't have one?</p>
               <a
-                href="https://shareef5.gumroad.com/l/yerirn"
+                href="https://logsubstantial.gumroad.com/l/yerirn"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline underline-offset-2 transition"
