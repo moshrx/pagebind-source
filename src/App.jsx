@@ -415,8 +415,6 @@ export default function App() {
   const [isEnhancing, setIsEnhancing] = useState(false)
   const [error, setError] = useState(null)
 
-  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />
-
   const handleFormat = useCallback(() => {
     if (!text.trim()) return
     setIsFormatting(true)
@@ -463,9 +461,10 @@ export default function App() {
   // Re-format automatically when template or font changes (if we already have data)
   const handleTemplateChange = (id) => {
     setTemplateId(id)
-    // If preview is showing, re-trigger so the preview updates
     if (bookData) setBookData((prev) => ({ ...prev }))
   }
+
+  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
