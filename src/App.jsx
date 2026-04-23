@@ -119,7 +119,7 @@ function TemplatePicker({ value, onChange }) {
       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
         Template
       </label>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {TEMPLATE_ORDER.map((id) => {
           const tpl = TEMPLATES[id]
           const active = value === id
