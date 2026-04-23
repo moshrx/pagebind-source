@@ -46,6 +46,14 @@ function PasswordGate({ onUnlock }) {
         <div className="text-center">
           <p className="text-sm font-semibold text-gray-700">Enter access code</p>
           <p className="text-xs text-gray-400 mt-1">This tool is invite-only</p>
+          <a
+            href="https://logsubstantial.gumroad.com/l/yerirn"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline underline-offset-2 transition"
+          >
+            Get access →
+          </a>
         </div>
 
         <div className="w-full flex flex-col gap-3">
